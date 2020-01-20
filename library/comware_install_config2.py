@@ -105,7 +105,7 @@ def main():
         argument_spec=dict(
             type=dict(required=True, choices=['display', 'show', 'config']),
             config_file=dict(required=True, type='str'),
-            old_config_file=dict(required=False, type='str'),
+            previous_config_file=dict(required=False, type='str'),
             port=dict(default=830, type='int'),
             hostname=dict(required=True),
             username=dict(required=True),
@@ -131,7 +131,7 @@ def main():
 
     ctype = module.params['type']
     config_file = module.params['config_file']
-    old_config_file = module.params['old_config_file']
+    previous_config_file = module.params['previous_config_file']
     is_delete = module.params['is_delete']
 
     changed = False
@@ -150,8 +150,8 @@ def main():
 
     commands = []
     # This part is used to update virtual interface, vsi and ip vpn-instance
-    if os.path.isfile(old_config_file) and str(is_delete).lower() == 'false':
-        with open(old_config_file) as file1:
+    if os.path.isfile(previous_config_file) and str(is_delete).lower() == 'false':
+        with open(previous_config_file) as file1:
             with open(config_file) as file2:
                 diff = difflib.unified_diff(
                     file1.readlines(),
@@ -168,6 +168,8 @@ def main():
                     if line[0] == '-' and line[1:].startswith('vsi'):
                         commands.append('undo ' + line[1:])
                     if line[0] == '-' and line[1:].startswith('ip vpn-instance'):
+                        commands.append('undo ' + line[1:])
+                    if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
                         commands.append('undo ' + line[1:])
                     last_line = line
 
@@ -213,4 +215,5 @@ def main():
 from ansible.module_utils.basic import *
 
 main()
+
 
