@@ -100,12 +100,41 @@ def safe_exit(module, device=None, **kwargs):
     module.exit_json(**kwargs)
 
 
+def process_diff(previous_config, current_config):
+    changed_commands = []
+    list_diff = []
+    diff = difflib.unified_diff(
+        previous_config,
+        current_config,
+        fromfile="previous_config",
+        tofile="current_config")
+    last_line = ''
+    for line in list(diff)[2:]:
+        line.strip()
+        if line[0] == '-' and line[1:].startswith('service-instance'):
+            changed_commands.append(last_line[1:])
+            changed_commands.append('undo ' + line[1:])
+            changed_commands.append('quit\n')
+        if line[0] == '-' and line[1:].startswith('vsi'):
+            changed_commands.append('undo ' + line[1:])
+        if line[0] == '-' and line[1:].startswith('ip vpn-instance'):
+            changed_commands.append('undo ' + line[1:])
+        if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
+            changed_commands.append('undo ' + line[1:])
+        last_line = line
+
+        if line[0] in ['-', '+'] and len(line) > 1:
+            list_diff.append(line)
+    return list_diff, changed_commands
+
+
 def main():
     module = AnsibleModule(
         argument_spec=dict(
             type=dict(required=True, choices=['display', 'show', 'config']),
             config_file=dict(required=True, type='str'),
             previous_config_file=dict(required=False, type='str'),
+            previous_config_content=dict(required=False, type='str'),
             port=dict(default=830, type='int'),
             hostname=dict(required=True),
             username=dict(required=True),
@@ -132,6 +161,7 @@ def main():
     ctype = module.params['type']
     config_file = module.params['config_file']
     previous_config_file = module.params['previous_config_file']
+    previous_config_content = module.params['previous_config_content']
     is_delete = module.params['is_delete']
 
     changed = False
@@ -149,34 +179,30 @@ def main():
                   descr='error during device open')
 
     commands = []
+    list_diff = []
     # This part is used to update virtual interface, vsi and ip vpn-instance
-    if os.path.isfile(previous_config_file) and str(is_delete).lower() == 'false':
-        with open(previous_config_file) as file1:
-            with open(config_file) as file2:
-                diff = difflib.unified_diff(
-                    file1.readlines(),
-                    file2.readlines(),
-                    fromfile=file1,
-                    tofile=file2)
-                last_line = ''
-                for line in list(diff)[2:]:
-                    line.strip()
-                    if line[0] == '-' and line[1:].startswith('service-instance'):
-                        commands.append(last_line[1:])
-                        commands.append('undo ' + line[1:])
-                        commands.append('quit\n')
-                    if line[0] == '-' and line[1:].startswith('vsi'):
-                        commands.append('undo ' + line[1:])
-                    if line[0] == '-' and line[1:].startswith('ip vpn-instance'):
-                        commands.append('undo ' + line[1:])
-                    if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
-                        commands.append('undo ' + line[1:])
-                    last_line = line
+    if str(is_delete).lower() == 'false':
+        previous_config = ''
+        if previous_config_content:
+            previous_config = previous_config_content.split('\n')
+        elif os.path.isfile(previous_config_file):
+            with open(previous_config_file, 'r') as pf:
+                previous_config = pf.read().splitlines()
 
-    if config_file_exists:
-        with open(config_file) as fp:
-            for line in fp:
-                commands.append(line)
+        with open(config_file, 'r') as cf:
+            current_config = cf.read().splitlines()
+
+        list_diff, changed_commands = process_diff(previous_config, current_config)
+        commands += changed_commands
+
+    # When there are no changes, we don't need to add configuration
+    if len(list_diff) > 1:
+        if config_file_exists:
+            with open(config_file) as fp:
+                for line in fp:
+                    commands.append(line.rstrip())
+    else:
+        commands.append("# There are no changes")
 
     response = None
 
@@ -208,6 +234,8 @@ def main():
     results['changed'] = changed
     results['end_state'] = 'N/A for this module.'
     results['response'] = response
+    results['commands'] = commands
+    results['list_diff'] = list_diff
 
     safe_exit(module, device, **results)
 
@@ -215,5 +243,6 @@ def main():
 from ansible.module_utils.basic import *
 
 main()
+
 
 
