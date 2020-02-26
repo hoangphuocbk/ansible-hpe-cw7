@@ -195,14 +195,19 @@ def main():
         list_diff, changed_commands = process_diff(previous_config, current_config)
         commands += changed_commands
 
-    # When there are no changes, we don't need to add configuration
-    if len(list_diff) > 1:
-        if config_file_exists:
+    if config_file_exists:
+        if str(is_delete).lower() == 'true':
             with open(config_file) as fp:
                 for line in fp:
                     commands.append(line.rstrip())
-    else:
-        commands.append("# There are no changes")
+
+        elif str(is_delete).lower() == 'false' and len(list_diff) > 1:
+            with open(config_file) as fp:
+                for line in fp:
+                    commands.append(line.rstrip())
+        else:
+            # When there are no changes, we don't need to add configuration
+            commands.append("# There are no changes")
 
     response = None
 
