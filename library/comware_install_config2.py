@@ -115,11 +115,20 @@ def process_diff(previous_config, current_config):
             changed_commands.append(last_line[1:])
             changed_commands.append('undo ' + line[1:])
             changed_commands.append('quit\n')
+        if line[0] == '-' and line[1:].startswith('ip route-static vpn-instance'):
+            changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('vsi'):
             changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('ip vpn-instance'):
-            changed_commands.append('undo ' + line[1:])
+            if last_line[1:].startswith('bgp'):
+                changed_commands.append(last_line[1:])
+                changed_commands.append('undo ' + line[1:])
+                changed_commands.append('quit\n')
+            else:
+                changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
+            changed_commands.append('undo ' + line[1:])
+        if line[0] == '-' and line[1:].startswith('interface Tunnel'):
             changed_commands.append('undo ' + line[1:])
         last_line = line
 
@@ -201,7 +210,7 @@ def main():
                 for line in fp:
                     commands.append(line.rstrip())
 
-        elif str(is_delete).lower() == 'false' and len(list_diff) > 1:
+        elif str(is_delete).lower() == 'false' and len(list_diff) > 0:
             with open(config_file) as fp:
                 for line in fp:
                     commands.append(line.rstrip())
@@ -248,6 +257,5 @@ def main():
 from ansible.module_utils.basic import *
 
 main()
-
 
 
