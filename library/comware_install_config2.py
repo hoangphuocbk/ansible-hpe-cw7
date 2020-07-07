@@ -118,14 +118,13 @@ def process_diff(previous_config, current_config):
         if line[0] == '-' and line[1:].startswith('ip route-static vpn-instance'):
             changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('vsi'):
-            changed_commands.append('undo ' + line[1:])
+            delete_vsi = 'undo ' + line[1:]
+            if delete_vsi not in changed_commands:
+                changed_commands.append(delete_vsi)
         if line[0] == '-' and line[1:].startswith('ip vpn-instance'):
-            if last_line[1:].startswith('bgp'):
-                changed_commands.append(last_line[1:])
-                changed_commands.append('undo ' + line[1:])
-                changed_commands.append('quit\n')
-            else:
-                changed_commands.append('undo ' + line[1:])
+            delete_vpn_instance = 'undo ' + line[1:]
+            if delete_vpn_instance not in changed_commands:
+                changed_commands.append(delete_vpn_instance)
         if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
             changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('interface Tunnel'):
