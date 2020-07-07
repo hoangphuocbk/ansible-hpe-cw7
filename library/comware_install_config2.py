@@ -126,7 +126,9 @@ def process_diff(previous_config, current_config):
             if delete_vpn_instance not in changed_commands:
                 changed_commands.append(delete_vpn_instance)
         if line[0] == '-' and line[1:].startswith('interface Vsi-interface'):
-            changed_commands.append('undo ' + line[1:])
+            delete_vsi_interface = 'undo ' + line[1:]
+            if delete_vsi_interface not in changed_commands:
+                changed_commands.append('undo ' + line[1:])
         if line[0] == '-' and line[1:].startswith('interface Tunnel'):
             changed_commands.append('undo ' + line[1:])
         last_line = line
