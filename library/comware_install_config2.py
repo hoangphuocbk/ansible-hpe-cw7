@@ -149,7 +149,8 @@ def main():
             hostname=dict(required=True),
             username=dict(required=True),
             password=dict(required=True),
-            is_delete=dict(required=True)
+            is_delete=dict(required=True),
+            timeout=dict(required=False)
         ),
         supports_check_mode=True
     )
@@ -162,11 +163,12 @@ def main():
     password = module.params['password']
     port = module.params['port']
     hostname = socket.gethostbyname(module.params['hostname'])
+    timeout = module.params['timeout'] if module.params['timeout'] else 60
 
     device_args = dict(host=hostname, username=username,
                        password=password, port=port)
 
-    device = HPCOM7(**device_args)
+    device = HPCOM7(timeout=timeout, **device_args)
 
     ctype = module.params['type']
     config_file = module.params['config_file']
